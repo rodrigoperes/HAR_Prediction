@@ -1,0 +1,137 @@
+---
+title: "Human Activity Recognition Predictions"
+author: "Rodrigo Peres Ferreira"
+date: "May 21, 2016"
+output: html_document
+---
+
+```{r}
+library(caret)
+```
+
+# 1 - Reading the Data
+
+```{r}
+training <- read.csv("Data/pml-training.csv")
+testing <- read.csv("Data/pml-testing.csv")
+```
+
+# 2 - Cleaning the Data
+
+## Replacing "" and #DIV/0! values by 'NA'
+
+```{r}
+j <- 1
+while (j < ncol(training))
+{
+     training[which(training[,j]== "" | training[,j]=="#DIV/0!"),j] <- NA
+     j <- j + 1
+}
+
+j <- 1
+while (j < ncol(testing))
+{
+     testing[which(testing[,j]== "" | testing[,j]=="#DIV/0!"),j] <- NA
+     j <- j + 1
+}
+```
+
+## Extract columns which values are all 'NA'
+
+```{r}
+j <- 1
+while (j < ncol(training))
+{
+     if(all(is.na(training[,j])))
+          training[,j] <- NULL
+     else     
+          j <- j + 1
+}
+
+j <- 1
+while (j < ncol(testing))
+{
+     if(all(is.na(testing[,j])))
+          testing[,j] <- NULL
+     else
+          j <- j + 1
+}
+```
+
+# 3 - Select the features
+
+## Select only the features that are also in the testing set
+
+```{r warning=FALSE}
+training <- training[,c("num_window","roll_belt" , "pitch_belt"  ,         "yaw_belt"       ,      "total_accel_belt"  ,   "gyros_belt_x"     ,    "gyros_belt_y"   ,     
+                        "gyros_belt_z"       ,  "accel_belt_x"     ,    "accel_belt_y"     ,    "accel_belt_z"    ,     "magnet_belt_x"      ,  "magnet_belt_y"  ,     
+                        "magnet_belt_z"     ,   "roll_arm"       ,      "pitch_arm"      ,      "yaw_arm"      ,        "total_accel_arm"   ,   "gyros_arm_x"    ,     
+                        "gyros_arm_y"     ,     "gyros_arm_z"     ,     "accel_arm_x"    ,      "accel_arm_y"    ,      "accel_arm_z"        ,  "magnet_arm_x"  ,      
+                        "magnet_arm_y"     ,    "magnet_arm_z"    ,     "roll_dumbbell"    ,    "pitch_dumbbell"   ,    "yaw_dumbbell"       ,  "total_accel_dumbbell" ,
+                        "gyros_dumbbell_x"   ,  "gyros_dumbbell_y"   ,  "gyros_dumbbell_z"   ,  "accel_dumbbell_x"    , "accel_dumbbell_y"   ,  "accel_dumbbell_z"  ,  
+                        "magnet_dumbbell_x"  ,  "magnet_dumbbell_y"  ,  "magnet_dumbbell_z"   , "roll_forearm"   ,      "pitch_forearm"       , "yaw_forearm"  ,       
+                        "total_accel_forearm"  , "gyros_forearm_x"   ,   "gyros_forearm_y"    ,  "gyros_forearm_z"    ,  "accel_forearm_x"   ,   "accel_forearm_y" ,    
+                        "accel_forearm_z"  ,    "magnet_forearm_x"   ,  "magnet_forearm_y"   ,  "magnet_forearm_z", "classe")]
+
+training <- aggregate(training,list(training$classe, training$num_window),mean)
+
+names(training)[1] <- "classe"
+training[,2] <- NULL
+training[,2] <- NULL
+training[,54] <- NULL
+
+testing <- testing[,8:60]
+```
+
+# 3 - 3-Fold Cross Validation
+
+```{r}
+set.seed(12321)
+folds <- createFolds(y <- training$classe, k=3, list=TRUE, returnTrain=TRUE)
+
+fold1 <- folds[[1]]
+fold2 <- folds[[2]]
+fold3 <- folds[[3]]
+```
+
+# 4 - Train the model
+
+## Fold 1
+
+```{r}
+modFit1 <- train(classe ~ . , data = training[fold1,], method="rf",prox=TRUE)
+print(modFit1$finalModel)
+
+pred1 <- predict(modFit1, training[-fold1,])
+confusionMatrix(pred1, training[-fold1,1])
+```
+
+## Fold 2
+
+```{r}
+modFit2 <- train(classe ~ . , data = training[fold2,], method="rf",prox=TRUE)
+print(modFit2$finalModel)
+
+pred2 <- predict(modFit2, training[-fold2,])
+confusionMatrix(pred2, training[-fold2,1])
+```
+
+## Fold 3
+
+```{r}
+modFit3 <- train(classe ~ . , data = training[fold3,], method="rf",prox=TRUE)
+print(modFit3$finalModel)
+
+pred3 <- predict(modFit3, training[-fold3,])
+confusionMatrix(pred3, training[-fold3,1])
+```
+
+# 5 - Train and predict the testing set
+
+```{r}
+modFit <- train(classe ~ . , data = training, method="rf",prox=TRUE)
+print(modFit$finalModel)
+
+pred <- predict(modFit, testing[,-53])
+```
+
